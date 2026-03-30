@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Topographic Calamity Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    overflow: hidden;
+    font-family: 'Share Tech Mono', monospace;
+    color: #e0d5c0;
+  }
+
+  #canvas { display: block; position: absolute; top: 0; left: 0; }
+
+  /* ── HEADER ───────────────────────────────────────────── */
+  #header {
+    position: absolute;
+    top: 18px; left: 18px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 10;
+  }
+  #header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #f0e8d0;
+    text-shadow: 0 0 20px rgba(255,200,100,0.4);
+  }
+  .badge {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #ccc;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 5px 12px;
+    border-radius: 3px;
+  }
+
+  /* ── TOP RIGHT CONTROLS ──────────────────────────────── */
+  #top-right {
+    position: absolute;
+    top: 18px; right: 18px;
+    z-index: 10;
+    display: flex; gap: 8px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px;
+    background: rgba(20,18,14,0.75);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: #aaa;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .icon-btn:hover { background: rgba(255,200,80,0.15); color: #f0c050; border-color: rgba(255,200,80,0.3); }
+
+  /* ── LEGEND ───────────────────────────────────────────── */
+  #legend {
+    position: absolute;
+    bottom: 28px; left: 18px;
+    background: rgba(12,10,8,0.82);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 14px 18px;
+    z-index: 10;
+    min-width: 160px;
+  }
+  #legend h3 {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 7px;
+    font-size: 12px;
+    color: #c8c0b0;
+  }
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .dot.high  { background: #ff3333; box-shadow: 0 0 8px #ff3333; }
+  .dot.med   { background: #ff8800; box-shadow: 0 0 8px #ff8800; }
+  .dot.low   { background: #44aaff; box-shadow: 0 0 8px #44aaff; }
+
+  /* ── MARKER LABELS ────────────────────────────────────── */
+  .marker-label {
+    position: absolute;
+    pointer-events: none;
+    z-index: 8;
+    transform: translate(-50%, -100%);
+    transition: opacity 0.2s;
+  }
+  .marker-label .label-box {
+    background: rgba(10,8,6,0.88);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    padding: 4px 9px 3px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #e8dfc8;
+    white-space: nowrap;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .marker-label .risk-badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 2px;
+  }
+  .marker-label .risk-badge.HIGH { color: #ff5555; }
+  .marker-label .risk-badge.MEDIUM { color: #ffaa00; }
+  .marker-label .risk-badge.LOW { color: #55aaff; }
+  .marker-label .sub-loc {
+    font-size: 9px;
+    color: #888;
+    text-align: center;
+  }
+  .marker-label .stem {
+    width: 1px; height: 12px;
+    background: rgba(255,255,255,0.3);
+    margin: 0 auto;
+  }
+  .marker-label .marker-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin: 0 auto;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .marker-dot.HIGH { background: #ff3333; box-shadow: 0 0 10px #ff3333; }
+  .marker-dot.MEDIUM { background: #ff8800; box-shadow: 0 0 10px #ff8800; }
+  .marker-dot.LOW { background: #44aaff; box-shadow: 0 0 10px #44aaff; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.6); opacity: 0.6; }
+  }
+
+  /* ── DETAIL PANEL ─────────────────────────────────────── */
+  #detail-panel {
+    position: absolute;
+    top: 70px; right: 18px;
+    width: 280px;
+    background: rgba(10,8,6,0.92);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 18px;
+    z-index: 10;
+    display: none;
+    animation: slideIn 0.2s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  #detail-panel .close-btn {
+    position: absolute;
+    top: 10px; right: 12px;
+    cursor: pointer;
+    color: #666;
+    font-size: 16px;
+    pointer-events: all;
+    line-height: 1;
+  }
+  #detail-panel .close-btn:hover { color: #ccc; }
+  #detail-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    color: #f0e8d0;
+    margin-bottom: 6px;
+    padding-right: 20px;
+  }
+  #detail-loc { font-size: 11px; color: #888; margin-bottom: 12px; }
+  .detail-risk {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 3px;
+    margin-bottom: 14px;
+  }
+  .detail-risk.HIGH { background: rgba(255,50,50,0.15); color: #ff5555; border: 1px solid rgba(255,50,50,0.3); }
+  .detail-risk.MEDIUM { background: rgba(255,150,0,0.15); color: #ffaa00; border: 1px solid rgba(255,150,0,0.3); }
+  .detail-risk.LOW { background: rgba(68,170,255,0.15); color: #66bbff; border: 1px solid rgba(68,170,255,0.3); }
+  .detail-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+  .detail-stat { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 11px; }
+  .detail-stat .key { color: #666; }
+  .detail-stat .val { color: #c8c0b0; }
+  #detail-desc { font-size: 11px; color: #999; line-height: 1.6; margin-top: 10px; }
+
+  /* ── BOTTOM STATUS BAR ─────────────────────────────────── */
+  #status-bar {
+    position: absolute;
+    bottom: 28px; right: 18px;
+    z-index: 10;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .status-btn {
+    background: rgba(12,10,8,0.75);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #888;
+    cursor: pointer;
+  }
+  .status-btn:hover { color: #f0c050; }
+  .hd-badge {
+    background: #1a6a2a;
+    color: #7fff7f;
+    border: none;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── CROSSHAIR CURSOR ─────────────────────────────────── */
+  #canvas { cursor: grab; }
+  #canvas.dragging { cursor: grabbing; }
+
+  /* ── CONTROLS HINT ────────────────────────────────────── */
+  #controls-hint {
+    position: absolute;
+    bottom: 70px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 10;
+    animation: fadeHint 5s ease-out forwards;
+  }
+  @keyframes fadeHint {
+    0%, 60% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- UI Overlay -->
+<div id="header">
+  <h1>3D Topographic Calamity Map</h1>
+  <div class="badge">12 ACTIVE ZONES</div>
+</div>
+
+<div id="top-right">
+  <div class="icon-btn" title="Share">&#8599;</div>
+  <div class="icon-btn" title="Close" id="close-btn">&#10005;</div>
+</div>
+
+<div id="legend">
+  <h3>CALAMITY SEVERITY</h3>
+  <div class="legend-item"><div class="dot high"></div> High Risk</div>
+  <div class="legend-item"><div class="dot med"></div> Medium Risk</div>
+  <div class="legend-item"><div class="dot low"></div> Low Risk</div>
+</div>
+
+<div id="detail-panel">
+  <div class="close-btn" id="panel-close">&#10005;</div>
+  <div id="detail-name">—</div>
+  <div id="detail-loc">—</div>
+  <div id="detail-risk-badge" class="detail-risk HIGH">HIGH RISK</div>
+  <div class="detail-divider"></div>
+  <div class="detail-stat"><span class="key">ALERT STATUS</span><span class="val" id="d-status">—</span></div>
+  <div class="detail-stat"><span class="key">AREA AFFECTED</span><span class="val" id="d-area">—</span></div>
+  <div class="detail-stat"><span class="key">SEVERITY INDEX</span><span class="val" id="d-severity">—</span></div>
+  <div class="detail-stat"><span class="key">TREND</span><span class="val" id="d-trend">—</span></div>
+  <div class="detail-divider"></div>
+  <div id="detail-desc">—</div>
+</div>
+
+<div id="status-bar">
+  <div class="status-btn">?</div>
+  <div class="status-btn">&#9881;</div>
+  <div class="status-btn">&#9776;</div>
+  <span class="hd-badge">HD</span>
+  <div class="status-btn">&#10752;</div>
+  <div class="status-btn">&#8599;&#8601;</div>
+</div>
+
+<div id="controls-hint">SCROLL TO ZOOM &nbsp;·&nbsp; DRAG TO ROTATE &nbsp;·&nbsp; CLICK MARKERS TO INSPECT</div>
+
+<!-- Marker labels container -->
+<div id="labels"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  PERLIN NOISE
+// ═══════════════════════════════════════════════════════
+const _perm = (() => {
+  const seed = 42;
+  const arr = Array.from({length: 256}, (_, i) => i);
+  let s = seed;
+  for (let i = 255; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return [...arr, ...arr];
+})();
+
+function _fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function _lerp(t, a, b) { return a + t * (b - a); }
+function _grad(h, x, y) {
+  const v = (h & 1) ? ((h & 2) ? -x : x) : ((h & 2) ? -y : y);
+  return v + ((h & 4) ? x + y : x - y) * 0.0; // simplified 2D grad
+}
+function _grad3(h, x, y, z) {
+  const H = h & 15;
+  const u = H < 8 ? x : y;
+  const v = H < 4 ? y : (H === 12 || H === 14 ? x : z);
+  return ((H & 1) ? -u : u) + ((H & 2) ? -v : v);
+}
+
+function perlin(x, y) {
+  const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+  x -= Math.floor(x); y -= Math.floor(y);
+  const u = _fade(x), v = _fade(y);
+  const a = _perm[X] + Y, b = _perm[X+1] + Y;
+  return _lerp(v,
+    _lerp(u, _grad3(_perm[a], x, y, 0), _grad3(_perm[b], x-1, y, 0)),
+    _lerp(u, _grad3(_perm[a+1], x, y-1, 0), _grad3(_perm[b+1], x-1, y-1, 0))
+  );
+}
+
+function fbm(x, y, octaves = 7) {
+  let val = 0, amp = 0.5, freq = 1, max = 0;
+  for (let i = 0; i < octaves; i++) {
+    val += perlin(x * freq, y * freq) * amp;
+    max += amp; amp *= 0.52; freq *= 2.1;
+  }
+  return val / max;
+}
+
+function terrainH(x, z) {
+  const nx = x * 0.028 + 3.7, nz = z * 0.028 + 1.2;
+  let h = fbm(nx, nz);
+  // Ridge noise
+  const ridge = Math.abs(fbm(nx * 1.3 + 10, nz * 1.3 + 10));
+  h += (1 - ridge) * 0.35;
+  // Canyon carve
+  const canyon = Math.abs(fbm(nx * 0.5 + 20, nz * 0.5 + 20));
+  h -= canyon * 0.2;
+  // Basin bowl (Death Valley style)
+  const dist2 = (x / 55) ** 2 + (z / 40) ** 2;
+  h = h * 0.55 + dist2 * 0.45 - 0.15;
+  return h * 30 - 3;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CALAMITY DATA
+// ═══════════════════════════════════════════════════════
+const CALAMITIES = [
+  {
+    name: 'Cascadia Subduction', location: 'Pacific NW, USA', risk: 'HIGH',
+    x: -38, z: -14,
+    status: 'ACTIVE MONITORING', area: '~850,000 km²', severity: '9.2 / 10', trend: '↑ INCREASING',
+    desc: 'Megathrust fault zone capable of M9+ earthquake. 300+ years since last full rupture. Cascadia region faces critical seismic threat.'
+  },
+  {
+    name: 'San Andreas Fault', location: 'California, USA', risk: 'HIGH',
+    x: -36, z: -7,
+    status: 'ELEVATED ALERT', area: '~1,300 km length', severity: '8.8 / 10', trend: '→ STABLE',
+    desc: 'Transform boundary running 1,300 km through California. Southern locked segment overdue for major slip event.'
+  },
+  {
+    name: 'CA Megafire', location: 'Southern CA, USA', risk: 'HIGH',
+    x: -34, z: -2,
+    status: 'ACTIVE', area: '~420,000 ha', severity: '8.1 / 10', trend: '↑ EXPANDING',
+    desc: 'Extreme fire weather driven by Santa Ana winds, drought, and high temperatures. Urban-wildland interface in critical danger.'
+  },
+  {
+    name: 'Amazon Wildfire', location: 'Brazil', risk: 'HIGH',
+    x: -22, z: 17,
+    status: 'ACTIVE', area: '~2.1M ha', severity: '8.5 / 10', trend: '↑ INCREASING',
+    desc: 'Record deforestation and prolonged drought fueling unprecedented fire activity. Irreversible biodiversity and carbon loss ongoing.'
+  },
+  {
+    name: 'Mediterranean Heat', location: 'Southern Europe', risk: 'MEDIUM',
+    x: 3, z: -11,
+    status: 'WATCH', area: '~3.4M km²', severity: '6.2 / 10', trend: '↑ WORSENING',
+    desc: 'Persistent heat dome driving temperatures 5–8°C above seasonal norms. Drought conditions affecting agriculture across 12 nations.'
+  },
+  {
+    name: 'Sahel Drought Belt', location: 'West Africa', risk: 'MEDIUM',
+    x: 0, z: 4,
+    status: 'ONGOING', area: '~5.4M km²', severity: '7.0 / 10', trend: '→ CHRONIC',
+    desc: 'Multi-year rainfall deficits displacing millions. Lake Chad has shrunk 90% since 1960. Food insecurity for 18M+ people.'
+  },
+  {
+    name: 'Congo Basin Logging', location: 'DR Congo', risk: 'MEDIUM',
+    x: 10, z: 13,
+    status: 'ONGOING', area: '~300K km²/yr', severity: '6.8 / 10', trend: '↑ ACCELERATING',
+    desc: 'World\'s second largest rainforest facing illegal logging at record pace. Carbon sink degradation has global climate implications.'
+  },
+  {
+    name: 'Siberian Fire', location: 'Russia', risk: 'LOW',
+    x: 28, z: -22,
+    status: 'MONITORING', area: '~180,000 ha', severity: '4.1 / 10', trend: '↓ DECLINING',
+    desc: 'Seasonal permafrost fire cycle. Methane release from thawing permafrost adds to greenhouse forcing. Currently below average severity.'
+  },
+  {
+    name: 'Himalaya Flood', location: 'Nepal, India', risk: 'HIGH',
+    x: 27, z: -6,
+    status: 'ACTIVE ALERT', area: '~220,000 km²', severity: '8.0 / 10', trend: '↑ INCREASING',
+    desc: 'Glacial lake outburst floods (GLOFs) accelerating due to rapid glacier retreat. Downstream populations of 60M+ at risk.'
+  },
+  {
+    name: 'Pacific Tsunami', location: 'Japan', risk: 'HIGH',
+    x: 43, z: -13,
+    status: 'WARNING ACTIVE', area: '~Pacific Basin', severity: '9.0 / 10', trend: '↑ ELEVATED',
+    desc: 'Subduction zone activity triggering tsunami watch. Ring of Fire seismicity elevated. Coastal evacuation protocols on standby.'
+  },
+  {
+    name: 'Ring of Fire', location: 'Philippines', risk: 'HIGH',
+    x: 40, z: 2,
+    status: 'HIGH ALERT', area: '~40,000 km arc', severity: '8.7 / 10', trend: '↑ INCREASING',
+    desc: 'Multiple active volcanoes and M7+ earthquakes in 30-day window. Volcanic ash advisory affecting flight corridors across SE Asia.'
+  },
+  {
+    name: 'Borneo Deforestation', location: 'Indonesia', risk: 'HIGH',
+    x: 37, z: 9,
+    status: 'CRITICAL', area: '~1.2M ha/yr', severity: '7.9 / 10', trend: '↑ ACCELERATING',
+    desc: 'Palm oil expansion and illegal logging destroying orangutan habitat and critical peatlands. Severe haze events affecting regional health.'
+  },
+];
+
+// ═══════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════
+const W = window.innerWidth, H = window.innerHeight;
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x1a1208, 0.008);
+scene.background = new THREE.Color(0x0a0805);
+
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 400);
+
+// ── TERRAIN ──────────────────────────────────────────
+const SEG = 220;
+const SIZE = 110;
+const terrainGeo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+terrainGeo.rotateX(-Math.PI / 2);
+
+const pos = terrainGeo.attributes.position;
+const colorArr = new Float32Array(pos.count * 3);
+
+for (let i = 0; i < pos.count; i++) {
+  const x = pos.getX(i), z = pos.getZ(i);
+  const h = terrainH(x, z);
+  pos.setY(i, h);
+
+  // Height-based vertex color (earth tones)
+  let r, g, b;
+  if (h < -4) {
+    // Deep canyon / riverbed — dark reddish brown
+    r = 0.28; g = 0.18; b = 0.12;
+  } else if (h < 0) {
+    // Low sand flats
+    const t = (h + 4) / 4;
+    r = 0.28 + t * 0.24; g = 0.18 + t * 0.16; b = 0.12 + t * 0.08;
+  } else if (h < 5) {
+    // Mid terrain — sandy brown
+    const t = h / 5;
+    r = 0.52 + t * 0.06; g = 0.34 + t * 0.02; b = 0.20 + t * 0.02;
+  } else if (h < 12) {
+    // Higher — reddish rock
+    const t = (h - 5) / 7;
+    r = 0.58 - t * 0.12; g = 0.36 - t * 0.08; b = 0.22 - t * 0.06;
+  } else {
+    // Mountain peaks — dark gray/purple rock
+    const t = Math.min((h - 12) / 8, 1);
+    r = 0.46 - t * 0.15; g = 0.28 - t * 0.10; b = 0.16 - t * 0.02;
+  }
+
+  // Subtle noise variation
+  const jitter = (Math.random() - 0.5) * 0.04;
+  colorArr[i * 3]     = Math.max(0, Math.min(1, r + jitter));
+  colorArr[i * 3 + 1] = Math.max(0, Math.min(1, g + jitter * 0.8));
+  colorArr[i * 3 + 2] = Math.max(0, Math.min(1, b + jitter * 0.6));
+}
+terrainGeo.setAttribute('color', new THREE.BufferAttribute(colorArr, 3));
+terrainGeo.computeVertexNormals();
+
+const terrainMat = new THREE.MeshStandardMaterial({
+  vertexColors: true,
+  roughness: 0.92,
+  metalness: 0.05,
+});
+const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+// ── LIGHTING ─────────────────────────────────────────
+// Sun
+const sunLight = new THREE.DirectionalLight(0xfff4d6, 1.8);
+sunLight.position.set(40, 60, -20);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 200;
+sunLight.shadow.camera.left = -70;
+sunLight.shadow.camera.right = 70;
+sunLight.shadow.camera.top = 70;
+sunLight.shadow.camera.bottom = -70;
+scene.add(sunLight);
+
+// Sky
+scene.add(new THREE.HemisphereLight(0x7a6a50, 0x2a1e0e, 0.6));
+
+// Fill
+const fill = new THREE.DirectionalLight(0x806040, 0.3);
+fill.position.set(-30, 20, 30);
+scene.add(fill);
+
+// ── MARKER MESHES (invisible hitboxes) ───────────────
+const markerMeshes = [];
+const labelEls = [];
+
+CALAMITIES.forEach((c, idx) => {
+  const hy = terrainH(c.x, c.z);
+  c.worldY = hy + 1.8;
+
+  // Invisible sphere for raycasting
+  const geo = new THREE.SphereGeometry(2.5, 8, 8);
+  const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(c.x, c.worldY, c.z);
+  mesh.userData = { calamityIdx: idx };
+  scene.add(mesh);
+  markerMeshes.push(mesh);
+
+  // Glowing sphere above terrain
+  const glowGeo = new THREE.SphereGeometry(0.55, 16, 16);
+  const color = c.risk === 'HIGH' ? 0xff2222 : c.risk === 'MEDIUM' ? 0xff8800 : 0x44aaff;
+  const glowMat = new THREE.MeshStandardMaterial({
+    color, emissive: color, emissiveIntensity: 2.5,
+    roughness: 0, metalness: 0
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.set(c.x, c.worldY, c.z);
+  scene.add(glow);
+  c._glowMesh = glow;
+
+  // Point light per marker
+  const light = new THREE.PointLight(color, 1.2, 12);
+  light.position.set(c.x, c.worldY, c.z);
+  scene.add(light);
+  c._light = light;
+
+  // HTML label
+  const el = document.createElement('div');
+  el.className = 'marker-label';
+  el.innerHTML = `
+    <div class="label-box">${c.name}</div>
+    <div class="sub-loc">${c.location}</div>
+    <div class="risk-badge ${c.risk}">${c.risk}</div>
+    <div class="stem"></div>
+    <div class="marker-dot ${c.risk}"></div>
+  `;
+  el.style.animationDelay = `${idx * 0.15}s`;
+  document.getElementById('labels').appendChild(el);
+  labelEls.push(el);
+  c._labelEl = el;
+});
+
+// ── CAMERA ORBIT STATE ───────────────────────────────
+let theta = 0.25;   // horizontal angle
+let phi   = 0.80;   // vertical angle (from top)
+let radius = 72;
+const target = new THREE.Vector3(0, 0, 0);
+
+function updateCamera() {
+  camera.position.set(
+    target.x + radius * Math.sin(phi) * Math.sin(theta),
+    target.y + radius * Math.cos(phi),
+    target.z + radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(target);
+}
+updateCamera();
+
+// ── INPUT ─────────────────────────────────────────────
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  isDragging = true;
+  prevMouse = { x: e.clientX, y: e.clientY };
+  canvas.classList.add('dragging');
+});
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  canvas.classList.remove('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - prevMouse.x;
+  const dy = e.clientY - prevMouse.y;
+  theta -= dx * 0.004;
+  phi = Math.max(0.15, Math.min(Math.PI / 2 - 0.02, phi + dy * 0.004));
+  prevMouse = { x: e.clientX, y: e.clientY };
+  updateCamera();
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  radius = Math.max(20, Math.min(130, radius + e.deltaY * 0.06));
+  updateCamera();
+}, { passive: false });
+
+// Touch support
+let lastTouch = null;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && lastTouch) {
+    const dx = e.touches[0].clientX - lastTouch.x;
+    const dy = e.touches[0].clientY - lastTouch.y;
+    theta -= dx * 0.005;
+    phi = Math.max(0.15, Math.min(Math.PI / 2 - 0.02, phi + dy * 0.005));
+    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    updateCamera();
+  }
+}, { passive: true });
+
+// ── RAYCASTING ────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse2D = new THREE.Vector2();
+let selectedIdx = -1;
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouse2D.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse2D.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse2D, camera);
+  const hits = raycaster.intersectObjects(markerMeshes);
+  if (hits.length > 0) {
+    const idx = hits[0].object.userData.calamityIdx;
+    showDetail(idx);
+    selectedIdx = idx;
+  }
+});
+
+// ── DETAIL PANEL ──────────────────────────────────────
+const panel = document.getElementById('detail-panel');
+document.getElementById('panel-close').addEventListener('click', () => {
+  panel.style.display = 'none';
+  selectedIdx = -1;
+});
+
+function showDetail(idx) {
+  const c = CALAMITIES[idx];
+  document.getElementById('detail-name').textContent = c.name;
+  document.getElementById('detail-loc').textContent = '📍 ' + c.location;
+  const rb = document.getElementById('detail-risk-badge');
+  rb.textContent = c.risk + ' RISK';
+  rb.className = 'detail-risk ' + c.risk;
+  document.getElementById('d-status').textContent = c.status;
+  document.getElementById('d-area').textContent = c.area;
+  document.getElementById('d-severity').textContent = c.severity;
+  document.getElementById('d-trend').textContent = c.trend;
+  document.getElementById('detail-desc').textContent = c.desc;
+  panel.style.display = 'block';
+}
+
+// ── LABEL PROJECTION ──────────────────────────────────
+const projVec = new THREE.Vector3();
+
+function updateLabels() {
+  CALAMITIES.forEach((c, i) => {
+    projVec.set(c.x, c.worldY + 1.5, c.z);
+    projVec.project(camera);
+
+    const px = ( projVec.x + 1) / 2 * window.innerWidth;
+    const py = (-projVec.y + 1) / 2 * window.innerHeight;
+
+    const el = labelEls[i];
+
+    // Cull if behind camera or offscreen
+    if (projVec.z > 1 || px < 0 || px > window.innerWidth || py < 0 || py > window.innerHeight) {
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+    } else {
+      el.style.opacity = selectedIdx === i ? '1' : '0.88';
+      el.style.left = px + 'px';
+      el.style.top  = py + 'px';
+      el.style.pointerEvents = 'auto';
+
+      // Scale by distance
+      const dist = camera.position.distanceTo(new THREE.Vector3(c.x, c.worldY, c.z));
+      const scale = Math.max(0.6, Math.min(1.1, 80 / dist));
+      el.style.transform = `translate(-50%, -100%) scale(${scale})`;
+    }
+  });
+}
+
+// ── ANIMATION ─────────────────────────────────────────
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.016;
+
+  // Pulse marker glow
+  CALAMITIES.forEach((c, i) => {
+    const pulse = 1 + Math.sin(t * 2.5 + i * 0.8) * 0.4;
+    c._glowMesh.scale.setScalar(pulse);
+    c._light.intensity = 0.8 + Math.sin(t * 2.5 + i * 0.8) * 0.5;
+  });
+
+  updateLabels();
+  renderer.render(scene, camera);
+}
+
+// ── RESIZE ────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+animate();
+</script>
+</body>
+</html>

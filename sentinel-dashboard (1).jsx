@@ -555,68 +555,8 @@ const Dashboard = ({onLogout}) => {
 
   const renderView = () => {
     if(nav==='overview') return (
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 280px',gridTemplateRows:'1fr 1fr',gap:12,height:'100%'}}>
-        {/* Globe */}
-        <Card title="Live Monitoring Globe" style={{overflow:'hidden'}}>
-          <div style={{height:230,position:'relative'}}>
-            <Globe3D/>
-            <div style={{position:'absolute',bottom:0,left:0,right:0,display:'flex',justifyContent:'center',gap:14}}>
-              {[{col:C.red,label:'Critical'},{col:C.amber,label:'High'},{col:C.cyan,label:'Moderate'},{col:C.green,label:'Nominal'}].map((l,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:'#64748b'}}>
-                  <div style={{width:7,height:7,borderRadius:'50%',background:l.col,boxShadow:`0 0 5px ${l.col}`}}/>{l.label}
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-        {/* Anomaly alerts */}
-        <Card title="Anomaly Priority Feed  ·  Capability 1" style={{overflow:'hidden'}}>
-          <AnomalyPanel compact/>
-        </Card>
-        {/* System health spans full right column */}
-        <Card title="System Health" style={{gridRow:'span 2',overflow:'auto'}}>
-          <div style={{marginBottom:12}}>
-            {[{label:'UPTIME',val:'99.97%',col:C.green},{label:'ZONES',val:'47/50',col:C.cyan},{label:'ALERTS',val:'4 ACTIVE',col:C.amber}].map((s,i)=>(
-              <div key={i} style={{padding:'7px 10px',marginBottom:6,borderRadius:8,background:'rgba(255,255,255,0.03)',border:`1px solid ${s.col}20`}}>
-                <div style={{fontSize:9,color:'#475569',letterSpacing:1,fontFamily:'Orbitron,monospace',marginBottom:2}}>{s.label}</div>
-                <div style={{fontSize:15,fontWeight:700,color:s.col,fontFamily:'Orbitron,monospace'}}>{s.val}</div>
-              </div>
-            ))}
-          </div>
-          <SystemHealth compact/>
-          <div style={{marginTop:14,borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:12}}>
-            <div className="card-title" style={{marginBottom:10}}>Risk Heatmap</div>
-            <HeatmapPanel/>
-            <div style={{marginTop:8,fontSize:11,color:'#475569'}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span>Critical Zones</span><span style={{color:C.red,fontWeight:600}}>6</span></div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span>High Risk</span><span style={{color:C.amber,fontWeight:600}}>9</span></div>
-              <div style={{display:'flex',justifyContent:'space-between'}}><span>Nominal</span><span style={{color:C.green,fontWeight:600}}>32</span></div>
-            </div>
-          </div>
-        </Card>
-        {/* Temporal */}
-        <Card title="Temporal Pattern Model  ·  Capability 2" style={{overflow:'hidden'}}>
-          <div style={{width:'100%',height:160}}>
-            <TemporalChart height={160}/>
-          </div>
-        </Card>
-        {/* Realtime + AI Query stacked */}
-        <Card title="Real-Time Signal Feed  &  AI Query" style={{overflow:'hidden',display:'flex',flexDirection:'column'}}>
-          <div style={{display:'flex',gap:14,marginBottom:8,flexWrap:'wrap'}}>
-            {[{col:C.cyan,l:'SST °C'},{col:C.green,l:'Chl mg/m³'},{col:C.amber,l:'pH'}].map((x,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#94a3b8'}}>
-                <div style={{width:14,height:2,background:x.col,borderRadius:1}}/>{x.l}
-              </div>
-            ))}
-          </div>
-          <div style={{width:'100%',height:130}}>
-            <RealtimeChart data={rtData} height={130}/>
-          </div>
-          <div style={{marginTop:12,borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:10,flex:1,overflow:'hidden'}}>
-            <div className="card-title" style={{marginBottom:8}}>Context-Aware Query Interface  ·  Capability 4</div>
-            <AIQuery/>
-          </div>
-        </Card>
+      <div style={{width:'100%', height:'100%', borderRadius: 16, overflow: 'hidden', position: 'relative'}}>
+        <iframe src="/calamity-map.html" style={{width:'100%', height:'100%', border: 'none'}} title="3D Topographic Calamity Map" />
       </div>
     )
     if(nav==='anomaly') return (
